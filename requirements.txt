@@ -1,0 +1,46 @@
+# ── Web framework ─────────────────────────────────────────
+fastapi==0.124.4
+
+# ── AI / LLM ──────────────────────────────────────────────
+openai==2.21.0
+langchain==1.2.10
+langchain-openai==1.1.10
+langchain-core==1.2.14
+langchain-community==0.4.1
+langchain-text-splitters==1.1.1
+langchain-redis==0.2.5
+langchain-tavily==0.2.17
+langgraph==1.0.9
+langgraph-checkpoint-redis==0.3.6
+
+# ── Observability ─────────────────────────────────────────
+langsmith==0.7.6
+
+# ── Speech / Transcription ────────────────────────────────
+deepgram-sdk==5.3.2
+
+# ── Databases ─────────────────────────────────────────────
+motor==3.7.1
+pymongo==4.15.5
+redis==7.1.0
+redisvl==0.15.0
+
+# ── Auth ──────────────────────────────────────────────────
+PyJWT==2.10.1
+
+
+# ── HTTP client ───────────────────────────────────────────
+httpx==0.28.1
+
+# ── PDF generation ────────────────────────────────────────
+reportlab==4.4.10
+
+# ── Email ────────────────────────────────────────────────
+aiosmtplib==5.1.0
+
+# ── Utilities ─────────────────────────────────────────────
+python-dotenv==1.2.1
+pydantic==2.12.5
+pydantic-settings==2.13.1
+typing-extensions==4.15.0
+python-multipart==0.0.20

@@ -2,7 +2,10 @@ from nodes.state import meemory
 from nodes.llm import llm
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langsmith import traceable
 model=llm()
+@traceable(name="generate answer")
+
 async def generate(state:meemory):
     prompt=ChatPromptTemplate.from_messages(
         

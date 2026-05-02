@@ -2,62 +2,77 @@ from nodes.state import meemory
 from nodes.decomposer import decomposer
 from nodes.llm import llm
 from langchain_core.prompts import ChatPromptTemplate
-import asyncio
+from langchain_core.documents import Document
 from pydantic import BaseModel
-model=llm()
-class keepordrop(BaseModel):
-    keep:bool
-async def filteration(state:meemory):
-    prompt=ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                """
-             Your are a strict relvance filter\n
-             return keep=true only if the sentence directly helps answer the question.\n
-             use only the sentence.output JSON only
+from typing import List
+from langsmith import traceable
+import logging
 
-""" ),
-(
-    "human",
-    """Question:{question}\n\nsentence:\n{sentence}"""
-)
-        ]
-    )
-    chain=prompt | model.with_structured_output(keepordrop)
-    q=state["question"]
-    if state.get("verdict")=="correct":
-        docs_to_use=state["good_docs"]
-    elif state.get("verdict")=="incorrect":
-        docs_to_use=state["web_docs"]
+logger = logging.getLogger(__name__)
+model = llm()
+
+
+class FilterResult(BaseModel):
+    kept_indices: List[int]
+
+
+@traceable(name="filter documents")
+async def filteration(state: meemory):
+    q = state["question"]
+
+    if state.get("verdict") == "correct":
+        docs_to_use = state["good_docs"]
+    elif state.get("verdict") == "incorrect":
+        docs_to_use = state["web_docs"]
     else:
-        docs_to_use=state["good_docs"]+ state["web_docs"]
-    context="\n\n".join(d.page_content for d in docs_to_use).strip()
-    from langchain_core.documents import Document
+        # ambiguous — merge both, filter will keep only relevant ones
+        docs_to_use = state["good_docs"] + state.get("web_docs", [])
+
+    context = "\n\n".join(d.page_content for d in docs_to_use).strip()
     strips = [Document(page_content=s) for s in decomposer(context)]
 
-    tasks = [
-        chain.ainvoke({"question": q, "sentence": s.page_content})
-        for s in strips
-    ]
+    if not strips:
+        logger.warning(f"[filter] No strips after decomposition for question: {q[:80]}")
+        return {"strips": [], "kept_strips": [], "refined_context": ""}
 
-    out_r = await asyncio.gather(*tasks, return_exceptions=True)
+    numbered = "\n".join(
+        f"{i}. {s.page_content}" for i, s in enumerate(strips)
+    )
 
-    kept = []
+    prompt = ChatPromptTemplate.from_messages([
+        (
+            "system",
+            """You are a strict relevance filter for a meeting Q&A system.
+You will be given a question and a numbered list of sentences.
+Return ONLY the indices of sentences that directly help answer the question.
+Output JSON only: {{"kept_indices": [0, 2, 5]}}
+If no sentences are relevant, return {{"kept_indices": []}}"""
+        ),
+        (
+            "human",
+            "Question: {question}\n\nSentences:\n{sentences}"
+        )
+    ])
 
-    for s, result in zip(strips, out_r):
+    chain = prompt | model.with_structured_output(FilterResult)
+    result = await chain.ainvoke({"question": q, "sentences": numbered})
 
-        if isinstance(result, Exception):
-            continue
+    # Fix Issue 7 — deduplicate indices so GPT-4o duplicates don't cause
+    # the same sentence appearing twice in refined_context
+    seen = set()
+    unique_indices = []
+    for i in result.kept_indices:
+        if i not in seen and i < len(strips):
+            seen.add(i)
+            unique_indices.append(i)
 
-        if result.keep:
-            kept.append(s)
-
+    kept = [strips[i] for i in unique_indices]
     refined_context = "\n".join(d.page_content for d in kept)
+
+    logger.info(f"[filter] kept {len(kept)}/{len(strips)} sentences for question: {q[:80]}")
 
     return {
         "strips": strips,
         "kept_strips": kept,
         "refined_context": refined_context
     }
-

@@ -1,0 +1,8 @@
+.env
+.git
+__pycache__
+*.pyc
+*.log
+temp_repo/
+app.log
+transciption.log

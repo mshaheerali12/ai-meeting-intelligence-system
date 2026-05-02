@@ -3,10 +3,12 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import inch
 from reportlab.lib.pagesizes import A4
+from langsmith import traceable
 import io
 
 
-def generate_meeting_pdf_bytes(transcription_text: str, summary_text: str):
+@traceable(name="generate meeting PDF")
+async def generate_meeting_pdf_bytes( summary_text: str):
     buffer = io.BytesIO()  # 🔥 In-memory buffer
 
     doc = SimpleDocTemplate(
@@ -38,13 +40,6 @@ def generate_meeting_pdf_bytes(transcription_text: str, summary_text: str):
     # TRANSCRIPTION SECTION
     # -----------------------
 
-    elements.append(Paragraph("Transcription", heading_style))
-    elements.append(Spacer(1, 0.2 * inch))
-    elements.append(
-        Paragraph(transcription_text.replace("\n", "<br/>"), body_style)
-    )
-
-    elements.append(PageBreak())
 
     # -----------------------
     # SUMMARY SECTION

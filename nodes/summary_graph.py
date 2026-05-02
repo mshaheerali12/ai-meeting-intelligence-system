@@ -1,6 +1,8 @@
 from nodes.meeting_nodes import summarizer_node
 from nodes.state import meemory
 from langgraph.graph import StateGraph,START,END
+from langsmith import traceable
+@traceable(name="build summarization graph")
 async def summarizer_graph():
     graph=StateGraph(meemory)
     graph.add_node("summary",summarizer_node)
